@@ -819,8 +819,7 @@ PlayerSettings:
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols: {}
   additionalCompilerArguments:
-    Standalone:
-    - -langVersion:preview
+    Standalone: []
   platformArchitecture: {}
   scriptingBackend:
     Android: 1
