@@ -26,9 +26,6 @@ public static class ZLinqExtensions
     /// </summary>
     public static void ForEach<TEnumerator, TSource>(this ValueEnumerable<TEnumerator, TSource> source, Action<TSource> action)
         where TEnumerator : struct, IValueEnumerator<TSource>
-#if NET9_0_OR_GREATER
-        , allows ref struct
-#endif
     {
         using var e = source.Enumerator;
 
