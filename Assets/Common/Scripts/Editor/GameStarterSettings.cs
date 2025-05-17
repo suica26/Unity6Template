@@ -31,7 +31,9 @@ public class GameStarterSettings : EditorWindow
         string current = EditorPrefs.GetString(PREFS_KEY, scenes.AsValueEnumerable().FirstOrDefault() ?? "");
         _selectedIndex = System.Array.IndexOf(_sceneNames, current);
         if (_selectedIndex < 0)
+        {
             _selectedIndex = 0;
+        }
     }
 
     private void OnGUI()
