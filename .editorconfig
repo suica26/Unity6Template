@@ -242,24 +242,52 @@ dotnet_naming_symbols.namespace.applicable_kinds = namespace
 dotnet_naming_symbols.namespace.applicable_accessibilities = *
 dotnet_naming_symbols.namespace.required_modifiers = 
 
-# 命名スタイル
-
-dotnet_naming_style.pascal_case.required_prefix = 
-dotnet_naming_style.pascal_case.required_suffix = 
-dotnet_naming_style.pascal_case.word_separator = 
+# 命名スタイル定義
 dotnet_naming_style.pascal_case.capitalization = pascal_case
+dotnet_naming_style.camel_case.capitalization = camel_case
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+dotnet_naming_style.all_upper_case.word_separator = _
+dotnet_naming_style.all_upper_case.capitalization = all_upper
 
-dotnet_naming_style.begins_with_i.required_prefix = I
-dotnet_naming_style.begins_with_i.required_suffix = 
-dotnet_naming_style.begins_with_i.word_separator = 
-dotnet_naming_style.begins_with_i.capitalization = pascal_case
+# シンボル定義
 
-dotnet_naming_style.underscore_and_pascal_case.required_prefix = _
-dotnet_naming_style.underscore_and_pascal_case.required_suffix = 
-dotnet_naming_style.underscore_and_pascal_case.word_separator = 
-dotnet_naming_style.underscore_and_pascal_case.capitalization = pascal_case
+dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
+dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_instance_fields.required_modifiers = none
+dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_instance_fields.required_modifiers = instance
 
-dotnet_naming_style.all_upper.required_prefix = 
-dotnet_naming_style.all_upper.required_suffix = 
-dotnet_naming_style.all_upper.word_separator = _
-dotnet_naming_style.all_upper.capitalization = all_upper
+dotnet_naming_symbols.other_instance_fields.applicable_kinds = field
+dotnet_naming_symbols.other_instance_fields.applicable_accessibilities = internal, protected, public
+dotnet_naming_symbols.other_instance_fields.required_modifiers = instance
+
+dotnet_naming_symbols.const_fields.applicable_kinds = field
+dotnet_naming_symbols.const_fields.required_modifiers = const
+
+dotnet_naming_symbols.static_fields.applicable_kinds = field
+dotnet_naming_symbols.static_fields.required_modifiers = static
+
+dotnet_naming_symbols.local_variables.applicable_kinds = local
+
+# 命名ルール定義
+
+dotnet_naming_rule.private_instance_fields_should_be_underscore_camel.severity = suggestion
+dotnet_naming_rule.private_instance_fields_should_be_underscore_camel.symbols = private_instance_fields
+dotnet_naming_rule.private_instance_fields_should_be_underscore_camel.style = underscore_camel_case
+
+dotnet_naming_rule.other_instance_fields_should_be_pascal.severity = suggestion
+dotnet_naming_rule.other_instance_fields_should_be_pascal.symbols = other_instance_fields
+dotnet_naming_rule.other_instance_fields_should_be_pascal.style = pascal_case
+
+dotnet_naming_rule.const_fields_should_be_all_upper.severity = suggestion
+dotnet_naming_rule.const_fields_should_be_all_upper.symbols = const_fields
+dotnet_naming_rule.const_fields_should_be_all_upper.style = all_upper_case
+
+dotnet_naming_rule.static_fields_should_be_pascal.severity = suggestion
+dotnet_naming_rule.static_fields_should_be_pascal.symbols = static_fields
+dotnet_naming_rule.static_fields_should_be_pascal.style = pascal_case
+
+dotnet_naming_rule.local_variables_should_be_camel.severity = suggestion
+dotnet_naming_rule.local_variables_should_be_camel.symbols = local_variables
+dotnet_naming_rule.local_variables_should_be_camel.style = camel_case
