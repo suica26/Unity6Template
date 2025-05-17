@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEditor;
-using System.Linq;
+using ZLinq;
 
 /// <summary>
 /// 開発中のゲーム開始設定
@@ -21,13 +21,14 @@ public class GameStarterSettings : EditorWindow
     private void OnEnable()
     {
         var scenes = EditorBuildSettings.scenes
+            .AsValueEnumerable()
             .Where(s => s.enabled)
             .Select(s => s.path)
             .ToArray();
 
         _sceneNames = scenes;
 
-        string current = EditorPrefs.GetString(PREFS_KEY, scenes.FirstOrDefault() ?? "");
+        string current = EditorPrefs.GetString(PREFS_KEY, scenes.AsValueEnumerable().FirstOrDefault() ?? "");
         _selectedIndex = System.Array.IndexOf(_sceneNames, current);
         if (_selectedIndex < 0)
             _selectedIndex = 0;
@@ -43,7 +44,7 @@ public class GameStarterSettings : EditorWindow
             return;
         }
 
-        _selectedIndex = EditorGUILayout.Popup("Start Scene", _selectedIndex, _sceneNames.Select(PathToName).ToArray());
+        _selectedIndex = EditorGUILayout.Popup("Start Scene", _selectedIndex, _sceneNames.AsValueEnumerable().Select(PathToName).ToArray());
 
         if (GUILayout.Button("Save"))
         {
@@ -57,4 +58,3 @@ public class GameStarterSettings : EditorWindow
         return System.IO.Path.GetFileNameWithoutExtension(path);
     }
 }
-
