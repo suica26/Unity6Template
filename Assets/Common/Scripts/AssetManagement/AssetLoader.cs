@@ -20,9 +20,13 @@ namespace AssetManagement
             {
                 await handle.WithCancellation(cancellationToken);
 
-                // Addressable内部の例外を確認
-                var ex = handle.OperationException;
-                if (ex != null) throw ex.GetBaseException();
+                // Addressablesの内部エラーがあったかを確認
+                if (handle.Status != AsyncOperationStatus.Succeeded)
+                {
+                    var ex = handle.OperationException ?? new Exception("Unknown exception occurred while loading asset.");
+                    handle.Release();
+                    throw ex;
+                }
             }
             catch (OperationCanceledException)
             {
@@ -36,13 +40,6 @@ namespace AssetManagement
                 // 例外が発生したら解放して投げ直す
                 handle.Release();
                 throw;
-            }
-
-            // Addressablesの内部エラーがあったかを確認
-            if (handle.Status != UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationStatus.Succeeded)
-            {
-                handle.Release();
-                throw handle.OperationException ?? new Exception("Unknown Exception.");
             }
 
             // AssetLifeTimeに追加
