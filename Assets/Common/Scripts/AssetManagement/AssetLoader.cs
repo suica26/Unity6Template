@@ -25,7 +25,6 @@ namespace AssetManagement
                 if (handle.Status != AsyncOperationStatus.Succeeded)
                 {
                     var ex = handle.OperationException ?? new Exception("Unknown exception occurred while loading asset.");
-                    handle.Release();
                     throw ex;
                 }
             }
