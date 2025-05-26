@@ -5,25 +5,52 @@ using UnityEngine;
 namespace Common.Scripts.SceneManagement
 {
     /// <summary>
-    /// シーンのエントリポイント基底
-    /// "EntryPoint"を省いたクラス名をシーン名とする
-    /// 初期化処理は具象クラスで実装することで、引数を持たせることができる
+    /// シーンのコンテキストを表す I / F
     /// </summary>
-    public abstract class SceneEntryPointBase : MonoBehaviour
+    public interface ISceneContext
     {
         /// <summary>
-        /// シーン読み込み後の処理
+        /// シーン名
         /// </summary>
-        public virtual UniTask PostLoadAsync(CancellationToken cancellationToken) => UniTask.CompletedTask;
+        string SceneName { get; }
+    }
+
+    /// <summary>
+    /// シーンを表す I / F
+    /// </summary>
+    public interface IScene<in TContext> where TContext : ISceneContext
+    {
+        /// <summary>
+        /// 初期化
+        /// </summary>
+        UniTask InitializeAsync(TContext context);
 
         /// <summary>
-        /// シーンを出る前の処理
+        /// 初期化後の処理
+        /// </summary>
+        public virtual UniTask PostInitializeAsync(CancellationToken cancellationToken) => UniTask.CompletedTask;
+
+        /// <summary>
+        /// このシーンを出る前の処理
         /// </summary>
         public virtual UniTask PreOutAsync(CancellationToken cancellationToken) => UniTask.CompletedTask;
 
         /// <summary>
-        /// シーンを出るときの処理
+        /// このシーンを出るときの処理
         /// </summary>
         public virtual UniTask OnOutAsync(CancellationToken cancellationToken) => UniTask.CompletedTask;
+
+        /// <summary>
+        /// このシーンに戻るときの処理
+        /// </summary>
+        UniTask OnBackedAsync(ISceneContext context, CancellationToken cancellationToken) => InitializeAsync((TContext)context);
+    }
+
+    /// <summary>
+    /// シーンの基底クラス
+    /// </summary>
+    public abstract class SceneBase<TContext> : MonoBehaviour, IScene<TContext> where TContext : ISceneContext
+    {
+        public abstract UniTask InitializeAsync(TContext context);
     }
 }
