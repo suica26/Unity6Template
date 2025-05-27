@@ -18,7 +18,7 @@ namespace Common.Scripts.SceneManagement
     /// <summary>
     /// シーンを表す I / F
     /// </summary>
-    public interface IScene<in TContext> where TContext : ISceneContext
+    public interface IScene<TContext> where TContext : ISceneContext
     {
         /// <summary>
         /// 初期化
