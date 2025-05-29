@@ -2,6 +2,7 @@ using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using UnityEngine;
 using UnitySceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace Common.Scripts.SceneManagement;
@@ -11,58 +12,90 @@ namespace Common.Scripts.SceneManagement;
 /// </summary>
 public static class SceneManager
 {
-    private record CurrentSceneInfo(ISceneContext Context, IScene<ISceneContext> Scene);
+    private readonly struct CurrentSceneInfo
+    {
+        public readonly string SceneName;
+        public readonly Func<CancellationToken, UniTask> OnOutTaskFactory;
 
-    private static ISceneContext? DEFAULT_CONTEXT;
-    private static Stack<ISceneContext> LOADED_SCENE_CONTEXTS = new();
+        /// <summary>
+        /// 現在のシーン情報を作成する
+        /// </summary>
+        public static CurrentSceneInfo Create<TContext>(SceneBase<TContext> scene, TContext context)
+            where TContext : ISceneContext
+        {
+            return new CurrentSceneInfo(
+                context.SceneName,
+                async (CancellationToken ct) =>
+                {
+                    await scene.PreOutAsync(ct);
+                    ct.ThrowIfCancellationRequested();
+
+                    await scene.OnOutAsync(ct);
+                    ct.ThrowIfCancellationRequested();
+                }
+            );
+        }
+
+        private CurrentSceneInfo(string sceneName, Func<CancellationToken, UniTask> onOutTaskFactory)
+        {
+            SceneName = sceneName;
+            OnOutTaskFactory = onOutTaskFactory;
+        }
+    }
+
+    private static Func<CancellationToken, UniTask>? DEFAULT_SCENE_LOAD_TASK_FACTORY = null;
+    private static Stack<Func<CancellationToken, UniTask>> LOAD_SCENE_TASK_FACTORY_STACK = new();
     private static CurrentSceneInfo? CURRENT_SCENE_INFO;
     private static bool IS_LOADING = false;
 
     /// <summary>
     /// デフォルトのシーンコンテキストを設定する
-    /// 1度のみ設定可能
     /// </summary>
-    public static void SetDefaultContext(ISceneContext context)
+    public static void SetDefaultSceneContext<TContext>(TContext context)
+        where TContext : ISceneContext
     {
-        if (DEFAULT_CONTEXT != null)
+        if (DEFAULT_SCENE_LOAD_TASK_FACTORY != null)
         {
-            throw new InvalidOperationException("デフォルトコンテキストは一度だけ設定できます。");
+            throw new InvalidOperationException("デフォルトのシーンコンテキストは一度だけ設定できます。");
         }
 
-        DEFAULT_CONTEXT = context;
+        DEFAULT_SCENE_LOAD_TASK_FACTORY = ct => LoadAsync(context, ct);
     }
 
     /// <summary>
     /// シーンを読み込む
     /// </summary>
-    public static async UniTask LoadSceneAsync(ISceneContext context, CancellationToken ct)
+    public static async UniTask LoadAsync<TContext>(TContext context, CancellationToken cancellationToken = default)
+        where TContext : ISceneContext
     {
-        await UniTask.WaitUntil(() => !IS_LOADING, cancellationToken: ct);
-        ct.ThrowIfCancellationRequested();
+        if (cancellationToken == default) cancellationToken = Application.exitCancellationToken;
+
+        await WaitUntilFinishLoadingAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         try
         {
             IS_LOADING = true;
 
-            // 現在のシーンをアンロード
-            await UnLoadCoreAsync(ct);
-            ct.ThrowIfCancellationRequested();
+            // 現在のシーンの遷移時処理を実行
+            await OnOutAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // 新しいシーンをロード
-            var scene = await LoadCoreAsync(context, ct);
-            ct.ThrowIfCancellationRequested();
+            var scene = await LoadCoreAsync(context, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // 初期化
-            await scene.InitializeAsync(context, ct);
-            ct.ThrowIfCancellationRequested();
+            await scene.InitializeAsync(context, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // 初期化後の処理
-            await scene.PostInitializeAsync(ct);
-            ct.ThrowIfCancellationRequested();
+            await scene.PostInitializeAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // 現在のシーン情報を更新
-            CURRENT_SCENE_INFO = new CurrentSceneInfo(context, scene);
-            LOADED_SCENE_CONTEXTS.Push(context);
+            CURRENT_SCENE_INFO = CurrentSceneInfo.Create(scene, context);
+            LOAD_SCENE_TASK_FACTORY_STACK.Push(ct => LoadAsync(context, ct));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -77,43 +110,33 @@ public static class SceneManager
     /// <summary>
     /// 1つ前のシーンに戻る
     /// </summary>
-    public static async UniTask BackAsync(CancellationToken ct)
+    public static async UniTask BackAsync(CancellationToken cancellationToken = default)
     {
-        if (LOADED_SCENE_CONTEXTS.Count <= 1)
+        if (cancellationToken == default) cancellationToken = Application.exitCancellationToken;
+
+        if (LOAD_SCENE_TASK_FACTORY_STACK.Count < 2)
         {
-            if (DEFAULT_CONTEXT == null)
+            if (DEFAULT_SCENE_LOAD_TASK_FACTORY == null)
             {
-                throw new InvalidOperationException("戻るシーンがありません。デフォルトのコンテキストを設定してください。");
+                throw new InvalidOperationException("戻るシーンがありません。デフォルトのシーンコンテキストを設定してください。");
             }
             else
             {
-                // デフォルトシーンに戻る
                 ClearStack();
-                await LoadSceneAsync(DEFAULT_CONTEXT, ct);
+                await DEFAULT_SCENE_LOAD_TASK_FACTORY(cancellationToken);
                 return;
             }
         }
 
-        await UniTask.WaitUntil(() => !IS_LOADING, cancellationToken: ct);
-        ct.ThrowIfCancellationRequested();
+        await WaitUntilFinishLoadingAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         try
         {
-            IS_LOADING = true;
-
-            // 現在のシーンをアンロード
-            await UnLoadCoreAsync(ct);
-            ct.ThrowIfCancellationRequested();
-
-            // 前のシーンをロード
-            LOADED_SCENE_CONTEXTS.Pop();
-            var previousContext = LOADED_SCENE_CONTEXTS.Peek();
-
-            var scene = await LoadCoreAsync(previousContext, ct);
-            ct.ThrowIfCancellationRequested();
-
-            // 現在のシーン情報を更新
-            CURRENT_SCENE_INFO = new CurrentSceneInfo(previousContext, scene);
+            // 1つ前のシーンをロード
+            LOAD_SCENE_TASK_FACTORY_STACK.Pop(); // 現在のシーンのタスクファクトリを削除
+            var beforeSceneLoadTaskFactory = LOAD_SCENE_TASK_FACTORY_STACK.Pop()!;
+            await beforeSceneLoadTaskFactory(cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -128,41 +151,38 @@ public static class SceneManager
     /// <summary>
     /// シーンスタックをクリアする
     /// </summary>
-    public static void ClearStack() => LOADED_SCENE_CONTEXTS.Clear();
+    public static void ClearStack() => LOAD_SCENE_TASK_FACTORY_STACK.Clear();
 
-    private static async UniTask UnLoadCoreAsync(CancellationToken ct)
+    private static async UniTask WaitUntilFinishLoadingAsync(CancellationToken cancellationToken)
     {
-        if (CURRENT_SCENE_INFO == null) return;
+        if (!IS_LOADING) return;
 
-        // シーンを出る
-        await CURRENT_SCENE_INFO.Scene.PreOutAsync(ct);
-        ct.ThrowIfCancellationRequested();
-
-        await CURRENT_SCENE_INFO.Scene.OnOutAsync(ct);
-        ct.ThrowIfCancellationRequested();
-
-        // シーンをアンロードする
-        await UnitySceneManager
-            .UnloadSceneAsync(CURRENT_SCENE_INFO.Context.SceneName)
-            .ToUniTask(cancellationToken: ct);
-        ct.ThrowIfCancellationRequested();
-
-        GC.Collect();
+        Debug.LogWarning("シーンのロード中です。前のロードが完了するまで待機します。");
+        await UniTask.WaitUntil(() => !IS_LOADING, cancellationToken: cancellationToken);
     }
 
-    private static async UniTask<IScene<ISceneContext>> LoadCoreAsync(ISceneContext context, CancellationToken ct)
+    private static UniTask OnOutAsync(CancellationToken cancellationToken)
+    {
+        if (CURRENT_SCENE_INFO == null) return UniTask.CompletedTask;
+
+        // 現在のシーンの遷移時処理を実行
+        return CURRENT_SCENE_INFO.Value.OnOutTaskFactory(cancellationToken);
+    }
+
+    private static async UniTask<SceneBase<TContext>> LoadCoreAsync<TContext>(TContext context, CancellationToken cancellationToken)
+        where TContext : ISceneContext
     {
         // 新しいシーンをロードする
         await UnitySceneManager
             .LoadSceneAsync(context.SceneName)
-            .ToUniTask(cancellationToken: ct);
-        ct.ThrowIfCancellationRequested();
+            .ToUniTask(cancellationToken: cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // 新しいシーンを取得
-        var scene = (IScene<ISceneContext>)UnityEngine.Object.FindFirstObjectByType<SceneBase<ISceneContext>>();
+        var scene = UnityEngine.Object.FindFirstObjectByType<SceneBase<TContext>>();
         if (scene == null)
         {
-            throw new InvalidOperationException($"{context.SceneName} が見つかりませんでした。");
+            throw new InvalidOperationException($"{context.SceneName}のシーンオブジェクトが見つかりません。シーンが正しく設定されているか確認してください。");
         }
 
         return scene;
