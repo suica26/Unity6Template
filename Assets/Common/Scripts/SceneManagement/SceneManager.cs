@@ -49,6 +49,7 @@ public static class SceneManager
 
     /// <summary>
     /// デフォルトのシーンを設定する
+    /// デフォルトのシーンは、シーンスタックが無い場合の戻る操作に使用される
     /// </summary>
     public static void SetDefaultScene<TSceneBase>(Func<TSceneBase, CancellationToken, UniTask>? initializationTaskFactory = null)
         where TSceneBase : SceneBase
@@ -66,9 +67,6 @@ public static class SceneManager
         where TSceneBase : SceneBase
     {
         if (cancellationToken == default) cancellationToken = Application.exitCancellationToken;
-
-        await WaitUntilFinishLoadingAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
 
         try
         {
@@ -125,9 +123,6 @@ public static class SceneManager
             }
         }
 
-        await WaitUntilFinishLoadingAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-
         try
         {
             // 1つ前のシーンをロード
@@ -150,14 +145,6 @@ public static class SceneManager
     /// </summary>
     public static void ClearStack() => LOAD_SCENE_TASK_FACTORY_STACK.Clear();
 
-    private static async UniTask WaitUntilFinishLoadingAsync(CancellationToken cancellationToken)
-    {
-        if (!IS_LOADING) return;
-
-        Debug.LogWarning("シーンのロード中です。前のロードが完了するまで待機します。");
-        await UniTask.WaitUntil(() => !IS_LOADING, cancellationToken: cancellationToken);
-    }
-
     private static UniTask OnOutAsync(CancellationToken cancellationToken)
     {
         if (CURRENT_SCENE_INFO == null) return UniTask.CompletedTask;
@@ -169,6 +156,12 @@ public static class SceneManager
     private static async UniTask<TSceneBase> LoadCoreAsync<TSceneBase>(CancellationToken cancellationToken)
         where TSceneBase : SceneBase
     {
+        if (IS_LOADING)
+        {
+            Debug.LogWarning("シーンのロード中です。前のロードが完了するまで待機します。");
+            await UniTask.WaitUntil(() => !IS_LOADING, cancellationToken: cancellationToken);
+        }
+
         var sceneName = SceneHelper.GetSceneFileName<TSceneBase>();
 
         // 新しいシーンをロードする
