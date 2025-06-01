@@ -20,11 +20,10 @@ public static class SceneManager
         /// <summary>
         /// 現在のシーン情報を作成する
         /// </summary>
-        public static CurrentSceneInfo Create<TContext>(SceneBase<TContext> scene, TContext context)
-            where TContext : ISceneContext
+        public static CurrentSceneInfo Create<TSceneBase>(TSceneBase scene) where TSceneBase : SceneBase
         {
             return new CurrentSceneInfo(
-                context.SceneName,
+                SceneHelper.GetSceneFileName<TSceneBase>(),
                 async (CancellationToken ct) =>
                 {
                     await scene.PreOutAsync(ct);
@@ -43,30 +42,28 @@ public static class SceneManager
         }
     }
 
-    private static Func<CancellationToken, UniTask>? DEFAULT_SCENE_LOAD_TASK_FACTORY = null;
     private static Stack<Func<CancellationToken, UniTask>> LOAD_SCENE_TASK_FACTORY_STACK = new();
+    private static Func<CancellationToken, UniTask>? DEFAULT_SCENE_LOAD_TASK_FACTORY = null;
     private static CurrentSceneInfo? CURRENT_SCENE_INFO;
     private static bool IS_LOADING = false;
 
     /// <summary>
-    /// デフォルトのシーンコンテキストを設定する
+    /// デフォルトのシーンを設定する
     /// </summary>
-    public static void SetDefaultSceneContext<TContext>(TContext context)
-        where TContext : ISceneContext
+    public static void SetDefaultScene<TSceneBase>(Func<TSceneBase, CancellationToken, UniTask>? initializationTaskFactory = null)
+        where TSceneBase : SceneBase
     {
-        if (DEFAULT_SCENE_LOAD_TASK_FACTORY != null)
-        {
-            throw new InvalidOperationException("デフォルトのシーンコンテキストは一度だけ設定できます。");
-        }
-
-        DEFAULT_SCENE_LOAD_TASK_FACTORY = ct => LoadAsync(context, ct);
+        DEFAULT_SCENE_LOAD_TASK_FACTORY = ct => LoadAsync(initializationTaskFactory, cancellationToken: ct);
     }
 
     /// <summary>
     /// シーンを読み込む
     /// </summary>
-    public static async UniTask LoadAsync<TContext>(TContext context, CancellationToken cancellationToken = default)
-        where TContext : ISceneContext
+    public static async UniTask LoadAsync<TSceneBase>(
+        Func<TSceneBase, CancellationToken, UniTask>? initializationTaskFactory = null,
+        CancellationToken cancellationToken = default
+    )
+        where TSceneBase : SceneBase
     {
         if (cancellationToken == default) cancellationToken = Application.exitCancellationToken;
 
@@ -82,11 +79,11 @@ public static class SceneManager
             cancellationToken.ThrowIfCancellationRequested();
 
             // 新しいシーンをロード
-            var scene = await LoadCoreAsync(context, cancellationToken);
+            var scene = await LoadCoreAsync<TSceneBase>(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // 初期化
-            await scene.InitializeAsync(context, cancellationToken);
+            if (initializationTaskFactory != null) await initializationTaskFactory(scene, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // 初期化後の処理
@@ -94,8 +91,8 @@ public static class SceneManager
             cancellationToken.ThrowIfCancellationRequested();
 
             // 現在のシーン情報を更新
-            CURRENT_SCENE_INFO = CurrentSceneInfo.Create(scene, context);
-            LOAD_SCENE_TASK_FACTORY_STACK.Push(ct => LoadAsync(context, ct));
+            CURRENT_SCENE_INFO = CurrentSceneInfo.Create(scene);
+            LOAD_SCENE_TASK_FACTORY_STACK.Push(ct => LoadAsync(initializationTaskFactory, ct));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -118,7 +115,7 @@ public static class SceneManager
         {
             if (DEFAULT_SCENE_LOAD_TASK_FACTORY == null)
             {
-                throw new InvalidOperationException("戻るシーンがありません。デフォルトのシーンコンテキストを設定してください。");
+                throw new InvalidOperationException("戻るシーンがありません。デフォルトのシーンを設定してください。");
             }
             else
             {
@@ -169,20 +166,22 @@ public static class SceneManager
         return CURRENT_SCENE_INFO.Value.OnOutTaskFactory(cancellationToken);
     }
 
-    private static async UniTask<SceneBase<TContext>> LoadCoreAsync<TContext>(TContext context, CancellationToken cancellationToken)
-        where TContext : ISceneContext
+    private static async UniTask<TSceneBase> LoadCoreAsync<TSceneBase>(CancellationToken cancellationToken)
+        where TSceneBase : SceneBase
     {
+        var sceneName = SceneHelper.GetSceneFileName<TSceneBase>();
+
         // 新しいシーンをロードする
         await UnitySceneManager
-            .LoadSceneAsync(context.SceneName)
+            .LoadSceneAsync(sceneName)
             .ToUniTask(cancellationToken: cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
         // 新しいシーンを取得
-        var scene = UnityEngine.Object.FindFirstObjectByType<SceneBase<TContext>>();
+        var scene = UnityEngine.Object.FindFirstObjectByType<TSceneBase>();
         if (scene == null)
         {
-            throw new InvalidOperationException($"{context.SceneName}のシーンオブジェクトが見つかりません。シーンが正しく設定されているか確認してください。");
+            throw new InvalidOperationException($"{sceneName}のシーンオブジェクトが見つかりません。シーンクラス名が正しく設定されているか確認してください。");
         }
 
         return scene;
