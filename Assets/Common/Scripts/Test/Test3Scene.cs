@@ -7,7 +7,9 @@ namespace Common.Scripts.Test
 {
     public class Test3Scene : SceneBase
     {
-        public UniTask InitializeAsync(CancellationToken cancellationToken)
+        private static string SceneFileName => SceneHelper.GetSceneFileName<Test3Scene>();
+
+        public override UniTask InitializeAsync(DefaultContext _, CancellationToken cancellationToken)
         {
             Debug.Log($"{SceneFileName}: InitializeAsync called with context");
 

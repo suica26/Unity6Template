@@ -5,11 +5,16 @@ using System.Threading;
 
 namespace Common.Scripts.Test
 {
-    public class Test2Scene : SceneBase
+    public class Test2Scene : SceneBase<Test2Scene.IContext>
     {
+        public interface IContext : ISceneContext { }
+        public record Context1 : IContext;
+        public record Context2 : IContext;
+
+        private static string SceneFileName => SceneHelper.GetSceneFileName<Test2Scene, IContext>();
         private static int instanceCount = 0;
 
-        public UniTask InitializeAsync(CancellationToken cancellationToken)
+        public override UniTask InitializeAsync(IContext context, CancellationToken cancellationToken)
         {
             Debug.Log($"{SceneFileName}: InitializeAsync called with context");
 
@@ -26,7 +31,7 @@ namespace Common.Scripts.Test
                     Debug.Log($"{SceneFileName}: 3000ms delay completed before going back");
 
                     Debug.Log($"{SceneFileName}: Starting scene backing sequence...");
-                    await SceneManager.BackAsync(cancellationToken);
+                    await SceneManager.BackAsync();
                 }).Forget();
 
                 return UniTask.CompletedTask;
@@ -38,7 +43,7 @@ namespace Common.Scripts.Test
                 Debug.Log($"{SceneFileName}: 3000ms delay completed before loading next scene");
 
                 Debug.Log($"{SceneFileName}: Starting scene loading sequence...");
-                await SceneManager.LoadAsync<Test3Scene>((scene, ct) => scene.InitializeAsync(ct));
+                await SceneManager.LoadAsync<Test3Scene>();
             }).Forget();
 
             return UniTask.CompletedTask;

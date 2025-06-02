@@ -7,6 +7,7 @@ namespace Common.Scripts.Test
 {
     public class TestBootScene : SceneBase
     {
+        private static string SceneFileName => SceneHelper.GetSceneFileName<TestBootScene>();
         private static int instanceCount = 0;
 
         private void Start()
@@ -16,11 +17,11 @@ namespace Common.Scripts.Test
             instanceCount++;
             if (instanceCount > 1) return;
             Debug.Log($"{SceneFileName}: Start called");
-            SceneManager.SetDefaultScene<TestBootScene>((scene, ct) => scene.InitializeAsync(ct));
-            InitializeAsync(Application.exitCancellationToken).Forget();
+            SceneManager.SetDefaultScene<TestBootScene>();
+            InitializeAsync(new DefaultContext(), Application.exitCancellationToken).Forget();
         }
 
-        public UniTask InitializeAsync(CancellationToken cancellationToken)
+        public override UniTask InitializeAsync(DefaultContext _, CancellationToken cancellationToken)
         {
             Debug.Log($"{SceneFileName}: InitializeAsync called");
             SceneManager.ClearStack();
@@ -30,7 +31,7 @@ namespace Common.Scripts.Test
                 await UniTask.Delay(1000, cancellationToken: cancellationToken);
                 Debug.Log($"{SceneFileName}: 3000ms delay completed");
 
-                await SceneManager.LoadAsync<Test1Scene>((scene, ct) => scene.InitializeAsync(ct));
+                await SceneManager.LoadAsync<Test1Scene>();
             }).Forget();
 
             return UniTask.CompletedTask;
