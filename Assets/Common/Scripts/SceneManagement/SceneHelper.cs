@@ -9,6 +9,17 @@ namespace Common.Scripts.SceneManagement
         /// シーンファイル名を取得する
         /// クラス名から "Scene" を除いたものを返す
         /// </summary>
+        public static string GetSceneFileName<TSceneBase, TContext>()
+            where TSceneBase : SceneBase<TContext>
+            where TContext : ISceneContext
+        {
+            return GetSceneFileName(typeof(TSceneBase).Name);
+        }
+
+        /// <summary>
+        /// シーンファイル名を取得する(コンテキスト省略版)
+        /// クラス名から "Scene" を除いたものを返す
+        /// </summary>
         public static string GetSceneFileName<TSceneBase>() where TSceneBase : SceneBase
         {
             return GetSceneFileName(typeof(TSceneBase).Name);
@@ -18,7 +29,18 @@ namespace Common.Scripts.SceneManagement
         /// シーンファイル名を取得する
         /// クラス名から "Scene" を除いたものを返す
         /// </summary>
-        public static string GetSceneFileName(SceneBase scene)
+        public static string GetSceneFileName<TSceneBase, TContext>(TSceneBase scene)
+            where TSceneBase : SceneBase<TContext>
+            where TContext : ISceneContext
+        {
+            return GetSceneFileName(scene.GetType().Name);
+        }
+
+        /// <summary>
+        /// シーンファイル名を取得する(コンテキスト省略版)  
+        /// クラス名から "Scene" を除いたものを返す
+        /// </summary>
+        public static string GetSceneFileName<TSceneBase>(TSceneBase scene) where TSceneBase : SceneBase
         {
             return GetSceneFileName(scene.GetType().Name);
         }
