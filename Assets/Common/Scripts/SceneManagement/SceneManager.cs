@@ -84,7 +84,6 @@ public static class SceneManager
     {
         var cancellationToken = Application.exitCancellationToken;
 
-
         try
         {
             await WaitUntilLoadingCompleteAsync(cancellationToken);
@@ -146,7 +145,6 @@ public static class SceneManager
         {
             await WaitUntilLoadingCompleteAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            IS_LOADING = true;
 
             // 1つ前のシーンをロード
             LOAD_SCENE_TASK_FACTORY_STACK.Pop(); // 現在のシーンのタスクファクトリを削除
@@ -156,10 +154,6 @@ public static class SceneManager
         catch (Exception e) when (e is not OperationCanceledException)
         {
             throw e;
-        }
-        finally
-        {
-            IS_LOADING = false;
         }
     }
 
