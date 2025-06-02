@@ -20,10 +20,12 @@ public static class SceneManager
         /// <summary>
         /// 現在のシーン情報を作成する
         /// </summary>
-        public static CurrentSceneInfo Create<TSceneBase>(TSceneBase scene) where TSceneBase : SceneBase
+        public static CurrentSceneInfo Create<TSceneBase, TContext>(TSceneBase scene)
+            where TSceneBase : SceneBase<TContext>
+            where TContext : ISceneContext
         {
             return new CurrentSceneInfo(
-                SceneHelper.GetSceneFileName<TSceneBase>(),
+                SceneHelper.GetSceneFileName<TSceneBase, TContext>(),
                 async (CancellationToken ct) =>
                 {
                     await scene.PreOutAsync(ct);
@@ -48,20 +50,37 @@ public static class SceneManager
     private static bool IS_LOADING = false;
 
     /// <summary>
+    /// デフォルトのシーンを設定する(コンテキスト省略版)
+    /// デフォルトのシーンは、シーンスタックが無い場合の戻る操作に使用される
+    /// </summary>
+    public static void SetDefaultScene<TSceneBase>() where TSceneBase : SceneBase
+    {
+        DEFAULT_SCENE_LOAD_TASK_FACTORY = (LoadAsync<TSceneBase>);
+    }
+
+    /// <summary>
     /// デフォルトのシーンを設定する
     /// デフォルトのシーンは、シーンスタックが無い場合の戻る操作に使用される
     /// </summary>
-    public static void SetDefaultScene<TSceneBase>(Func<TSceneBase, CancellationToken, UniTask>? initializationTaskFactory = null)
-        where TSceneBase : SceneBase
+    public static void SetDefaultScene<TSceneBase, TContext>(TContext context)
+        where TSceneBase : SceneBase<TContext>
+        where TContext : ISceneContext
     {
-        DEFAULT_SCENE_LOAD_TASK_FACTORY = () => LoadAsync(initializationTaskFactory);
+        DEFAULT_SCENE_LOAD_TASK_FACTORY = () => LoadAsync<TSceneBase, TContext>(context);
     }
+
+    /// <summary>
+    /// シーンを読み込む(コンテキスト省略版)
+    /// </summary>
+    public static UniTask LoadAsync<TSceneBase>() where TSceneBase : SceneBase
+        => LoadAsync<TSceneBase, DefaultContext>(new DefaultContext());
 
     /// <summary>
     /// シーンを読み込む
     /// </summary>
-    public static async UniTask LoadAsync<TSceneBase>(Func<TSceneBase, CancellationToken, UniTask>? initializationTaskFactory = null)
-        where TSceneBase : SceneBase
+    public static async UniTask LoadAsync<TSceneBase, TContext>(TContext context)
+        where TSceneBase : SceneBase<TContext>
+        where TContext : ISceneContext
     {
         var cancellationToken = Application.exitCancellationToken;
 
@@ -74,11 +93,11 @@ public static class SceneManager
             cancellationToken.ThrowIfCancellationRequested();
 
             // 新しいシーンをロード
-            var scene = await LoadCoreAsync<TSceneBase>(cancellationToken);
+            var scene = await LoadCoreAsync<TSceneBase, TContext>(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // 初期化
-            if (initializationTaskFactory != null) await initializationTaskFactory(scene, cancellationToken);
+            await scene.InitializeAsync(context, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // 初期化後の処理
@@ -86,8 +105,8 @@ public static class SceneManager
             cancellationToken.ThrowIfCancellationRequested();
 
             // 現在のシーン情報を更新
-            CURRENT_SCENE_INFO = CurrentSceneInfo.Create(scene);
-            LOAD_SCENE_TASK_FACTORY_STACK.Push(() => LoadAsync(initializationTaskFactory));
+            CURRENT_SCENE_INFO = CurrentSceneInfo.Create<TSceneBase, TContext>(scene);
+            LOAD_SCENE_TASK_FACTORY_STACK.Push(() => LoadAsync<TSceneBase, TContext>(context));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -102,10 +121,8 @@ public static class SceneManager
     /// <summary>
     /// 1つ前のシーンに戻る
     /// </summary>
-    public static async UniTask BackAsync(CancellationToken cancellationToken = default)
+    public static async UniTask BackAsync()
     {
-        if (cancellationToken == default) cancellationToken = Application.exitCancellationToken;
-
         if (LOAD_SCENE_TASK_FACTORY_STACK.Count < 2)
         {
             if (DEFAULT_SCENE_LOAD_TASK_FACTORY == null)
@@ -150,8 +167,9 @@ public static class SceneManager
         return CURRENT_SCENE_INFO.Value.OnOutTaskFactory(cancellationToken);
     }
 
-    private static async UniTask<TSceneBase> LoadCoreAsync<TSceneBase>(CancellationToken cancellationToken)
-        where TSceneBase : SceneBase
+    private static async UniTask<TSceneBase> LoadCoreAsync<TSceneBase, TContext>(CancellationToken cancellationToken)
+        where TSceneBase : SceneBase<TContext>
+        where TContext : ISceneContext
     {
         if (IS_LOADING)
         {
@@ -159,7 +177,7 @@ public static class SceneManager
             await UniTask.WaitUntil(() => !IS_LOADING, cancellationToken: cancellationToken);
         }
 
-        var sceneName = SceneHelper.GetSceneFileName<TSceneBase>();
+        var sceneName = SceneHelper.GetSceneFileName<TSceneBase, TContext>();
 
         // 新しいシーンをロードする
         await UnitySceneManager
