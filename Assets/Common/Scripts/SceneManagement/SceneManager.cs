@@ -42,8 +42,8 @@ public static class SceneManager
         }
     }
 
-    private static Stack<Func<CancellationToken, UniTask>> LOAD_SCENE_TASK_FACTORY_STACK = new();
-    private static Func<CancellationToken, UniTask>? DEFAULT_SCENE_LOAD_TASK_FACTORY = null;
+    private static Stack<Func<UniTask>> LOAD_SCENE_TASK_FACTORY_STACK = new();
+    private static Func<UniTask>? DEFAULT_SCENE_LOAD_TASK_FACTORY = null;
     private static CurrentSceneInfo? CURRENT_SCENE_INFO;
     private static bool IS_LOADING = false;
 
@@ -54,19 +54,16 @@ public static class SceneManager
     public static void SetDefaultScene<TSceneBase>(Func<TSceneBase, CancellationToken, UniTask>? initializationTaskFactory = null)
         where TSceneBase : SceneBase
     {
-        DEFAULT_SCENE_LOAD_TASK_FACTORY = ct => LoadAsync(initializationTaskFactory, cancellationToken: ct);
+        DEFAULT_SCENE_LOAD_TASK_FACTORY = () => LoadAsync(initializationTaskFactory);
     }
 
     /// <summary>
     /// シーンを読み込む
     /// </summary>
-    public static async UniTask LoadAsync<TSceneBase>(
-        Func<TSceneBase, CancellationToken, UniTask>? initializationTaskFactory = null,
-        CancellationToken cancellationToken = default
-    )
+    public static async UniTask LoadAsync<TSceneBase>(Func<TSceneBase, CancellationToken, UniTask>? initializationTaskFactory = null)
         where TSceneBase : SceneBase
     {
-        if (cancellationToken == default) cancellationToken = Application.exitCancellationToken;
+        var cancellationToken = Application.exitCancellationToken;
 
         try
         {
@@ -90,7 +87,7 @@ public static class SceneManager
 
             // 現在のシーン情報を更新
             CURRENT_SCENE_INFO = CurrentSceneInfo.Create(scene);
-            LOAD_SCENE_TASK_FACTORY_STACK.Push(ct => LoadAsync(initializationTaskFactory, ct));
+            LOAD_SCENE_TASK_FACTORY_STACK.Push(() => LoadAsync(initializationTaskFactory));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -118,7 +115,7 @@ public static class SceneManager
             else
             {
                 ClearStack();
-                await DEFAULT_SCENE_LOAD_TASK_FACTORY(cancellationToken);
+                await DEFAULT_SCENE_LOAD_TASK_FACTORY();
                 return;
             }
         }
@@ -128,7 +125,7 @@ public static class SceneManager
             // 1つ前のシーンをロード
             LOAD_SCENE_TASK_FACTORY_STACK.Pop(); // 現在のシーンのタスクファクトリを削除
             var beforeSceneLoadTaskFactory = LOAD_SCENE_TASK_FACTORY_STACK.Pop()!;
-            await beforeSceneLoadTaskFactory(cancellationToken);
+            await beforeSceneLoadTaskFactory();
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
