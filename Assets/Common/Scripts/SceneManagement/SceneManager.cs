@@ -84,8 +84,11 @@ public static class SceneManager
     {
         var cancellationToken = Application.exitCancellationToken;
 
+
         try
         {
+            await WaitUntilLoadingCompleteAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             IS_LOADING = true;
 
             // 現在のシーンの遷移時処理を実行
@@ -123,6 +126,8 @@ public static class SceneManager
     /// </summary>
     public static async UniTask BackAsync()
     {
+        var cancellationToken = Application.exitCancellationToken;
+
         if (LOAD_SCENE_TASK_FACTORY_STACK.Count < 2)
         {
             if (DEFAULT_SCENE_LOAD_TASK_FACTORY == null)
@@ -139,6 +144,10 @@ public static class SceneManager
 
         try
         {
+            await WaitUntilLoadingCompleteAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            IS_LOADING = true;
+
             // 1つ前のシーンをロード
             LOAD_SCENE_TASK_FACTORY_STACK.Pop(); // 現在のシーンのタスクファクトリを削除
             var beforeSceneLoadTaskFactory = LOAD_SCENE_TASK_FACTORY_STACK.Pop()!;
@@ -171,12 +180,6 @@ public static class SceneManager
         where TSceneBase : SceneBase<TContext>
         where TContext : ISceneContext
     {
-        if (IS_LOADING)
-        {
-            Debug.LogWarning("シーンのロード中です。前のロードが完了するまで待機します。");
-            await UniTask.WaitUntil(() => !IS_LOADING, cancellationToken: cancellationToken);
-        }
-
         var sceneName = SceneHelper.GetSceneFileName<TSceneBase, TContext>();
 
         // 新しいシーンをロードする
@@ -193,5 +196,13 @@ public static class SceneManager
         }
 
         return scene;
+    }
+
+    private static UniTask WaitUntilLoadingCompleteAsync(CancellationToken cancellationToken)
+    {
+        if (!IS_LOADING) return UniTask.CompletedTask;
+
+        Debug.LogWarning("シーンのロード中です。前のロードが完了するまで待機します。");
+        return UniTask.WaitUntil(() => !IS_LOADING, cancellationToken: cancellationToken);
     }
 }
