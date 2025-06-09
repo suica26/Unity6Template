@@ -72,7 +72,7 @@ public static class SceneEntryPointManager
     /// シーンエントリーポイントを読み込む(コンテキスト省略版)
     /// </summary>
     public static UniTask LoadAsync<TSceneEntryPoint>() where TSceneEntryPoint : SceneEntryPointBase
-        => LoadAsync<TSceneEntryPoint, DefaultContext>(new DefaultContext());
+        => LoadAsync<TSceneEntryPoint, ISceneEntryPointContext.Default>(new ISceneEntryPointContext.Default());
 
     /// <summary>
     /// シーンエントリーポイントを読み込む

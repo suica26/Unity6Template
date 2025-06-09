@@ -33,4 +33,4 @@ public abstract class SceneEntryPointBase<TContext> : MonoBehaviour where TConte
 /// <summary>
 /// シーンエントリーポイントの基底クラス（コンテキスト省略版）
 /// </summary>
-public abstract class SceneEntryPointBase : SceneEntryPointBase<DefaultContext> { }
+public abstract class SceneEntryPointBase : SceneEntryPointBase<ISceneEntryPointContext.Default> { }
