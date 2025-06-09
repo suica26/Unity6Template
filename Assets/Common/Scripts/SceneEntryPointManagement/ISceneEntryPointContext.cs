@@ -1,12 +1,12 @@
 namespace SceneEntryPointManagement;
 
 /// <summary>
-/// シーンエントリーポイントコンテキストの I / F
+/// シーンエントリーポイント引数の I / F
 /// </summary>
-public interface ISceneEntryPointContext
+public interface ISceneEntryPointArguments
 {
     /// <summary>
-    /// デフォルトのシーンエントリーポイントコンテキスト
+    /// デフォルトのシーンエントリーポイント引数
     /// </summary>
-    public record struct Default : ISceneEntryPointContext;
+    public record struct Default : ISceneEntryPointArguments;
 }

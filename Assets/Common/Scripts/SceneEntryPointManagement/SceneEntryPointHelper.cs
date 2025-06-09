@@ -9,15 +9,15 @@ namespace SceneEntryPointManagement
         /// シーンファイル名を取得する
         /// クラス名から "EntryPoint" を除いたものを返す
         /// </summary>
-        public static string GetSceneFileName<TSceneEntryPoint, TContext>()
-            where TSceneEntryPoint : SceneEntryPointBase<TContext>
-            where TContext : ISceneEntryPointContext
+        public static string GetSceneFileName<TSceneEntryPoint, TArguments>()
+            where TSceneEntryPoint : SceneEntryPointBase<TArguments>
+            where TArguments : ISceneEntryPointArguments
         {
             return GetSceneFileName(typeof(TSceneEntryPoint).Name);
         }
 
         /// <summary>
-        /// シーンファイル名を取得する(コンテキスト省略版)
+        /// シーンファイル名を取得する(引数省略版)
         /// クラス名から "EntryPoint" を除いたものを返す
         /// </summary>
         public static string GetSceneFileName<TSceneEntryPoint>() where TSceneEntryPoint : SceneEntryPointBase
@@ -29,15 +29,15 @@ namespace SceneEntryPointManagement
         /// シーンファイル名を取得する
         /// クラス名から "EntryPoint" を除いたものを返す
         /// </summary>
-        public static string GetSceneFileName<TSceneEntryPoint, TContext>(TSceneEntryPoint scene)
-            where TSceneEntryPoint : SceneEntryPointBase<TContext>
-            where TContext : ISceneEntryPointContext
+        public static string GetSceneFileName<TSceneEntryPoint, TArguments>(TSceneEntryPoint scene)
+            where TSceneEntryPoint : SceneEntryPointBase<TArguments>
+            where TArguments : ISceneEntryPointArguments
         {
             return GetSceneFileName(scene.GetType().Name);
         }
 
         /// <summary>
-        /// シーンファイル名を取得する(コンテキスト省略版)  
+        /// シーンファイル名を取得する(引数省略版)  
         /// クラス名から "EntryPoint" を除いたものを返す
         /// </summary>
         public static string GetSceneFileName<TSceneEntryPoint>(TSceneEntryPoint scene) where TSceneEntryPoint : SceneEntryPointBase

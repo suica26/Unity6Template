@@ -19,12 +19,12 @@ public static class SceneEntryPointManager
         /// <summary>
         /// 現在のシーンエントリーポイント情報を作成する
         /// </summary>
-        public static CurrentSceneEntryPointInfo Create<TSceneEntryPoint, TContext>(TSceneEntryPoint sceneEntryPoint)
-            where TSceneEntryPoint : SceneEntryPointBase<TContext>
-            where TContext : ISceneEntryPointContext
+        public static CurrentSceneEntryPointInfo Create<TSceneEntryPoint, TArguments>(TSceneEntryPoint sceneEntryPoint)
+            where TSceneEntryPoint : SceneEntryPointBase<TArguments>
+            where TArguments : ISceneEntryPointArguments
         {
             return new CurrentSceneEntryPointInfo(
-                SceneEntryPointHelper.GetSceneFileName<TSceneEntryPoint, TContext>(),
+                SceneEntryPointHelper.GetSceneFileName<TSceneEntryPoint, TArguments>(),
                 async (CancellationToken ct) =>
                 {
                     await sceneEntryPoint.PreOutAsync(ct);
@@ -49,7 +49,7 @@ public static class SceneEntryPointManager
     private static bool IS_LOADING = false;
 
     /// <summary>
-    /// デフォルトのシーンエントリーポイントを設定する(コンテキスト省略版)
+    /// デフォルトのシーンエントリーポイントを設定する(引数省略版)
     /// デフォルトのシーンエントリーポイントは、シーンエントリーポイントスタックが無い場合の戻る操作に使用される
     /// </summary>
     public static void SetDefault<TSceneEntryPoint>() where TSceneEntryPoint : SceneEntryPointBase
@@ -61,25 +61,25 @@ public static class SceneEntryPointManager
     /// デフォルトのシーンエントリーポイントを設定する
     /// デフォルトのシーンエントリーポイントは、シーンエントリーポイントスタックが無い場合の戻る操作に使用される
     /// </summary>
-    public static void SetDefault<TSceneEntryPoint, TContext>(TContext context)
-        where TSceneEntryPoint : SceneEntryPointBase<TContext>
-        where TContext : ISceneEntryPointContext
+    public static void SetDefault<TSceneEntryPoint, TArguments>(TArguments arguments)
+        where TSceneEntryPoint : SceneEntryPointBase<TArguments>
+        where TArguments : ISceneEntryPointArguments
     {
-        DEFAULT_SCENE_ENTRY_POINT_LOAD_TASK_FACTORY = () => LoadAsync<TSceneEntryPoint, TContext>(context);
+        DEFAULT_SCENE_ENTRY_POINT_LOAD_TASK_FACTORY = () => LoadAsync<TSceneEntryPoint, TArguments>(arguments);
     }
 
     /// <summary>
-    /// シーンエントリーポイントを読み込む(コンテキスト省略版)
+    /// シーンエントリーポイントを読み込む(引数省略版)
     /// </summary>
     public static UniTask LoadAsync<TSceneEntryPoint>() where TSceneEntryPoint : SceneEntryPointBase
-        => LoadAsync<TSceneEntryPoint, ISceneEntryPointContext.Default>(new ISceneEntryPointContext.Default());
+        => LoadAsync<TSceneEntryPoint, ISceneEntryPointArguments.Default>(new ISceneEntryPointArguments.Default());
 
     /// <summary>
     /// シーンエントリーポイントを読み込む
     /// </summary>
-    public static async UniTask LoadAsync<TSceneEntryPoint, TContext>(TContext context)
-        where TSceneEntryPoint : SceneEntryPointBase<TContext>
-        where TContext : ISceneEntryPointContext
+    public static async UniTask LoadAsync<TSceneEntryPoint, TArguments>(TArguments arguments)
+        where TSceneEntryPoint : SceneEntryPointBase<TArguments>
+        where TArguments : ISceneEntryPointArguments
     {
         var cancellationToken = Application.exitCancellationToken;
 
@@ -94,11 +94,11 @@ public static class SceneEntryPointManager
             cancellationToken.ThrowIfCancellationRequested();
 
             // 新しいシーンエントリーポイントをロード
-            var scene = await LoadCoreAsync<TSceneEntryPoint, TContext>(cancellationToken);
+            var scene = await LoadCoreAsync<TSceneEntryPoint, TArguments>(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // 初期化
-            await scene.InitializeAsync(context, cancellationToken);
+            await scene.InitializeAsync(arguments, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // 初期化後の処理
@@ -106,8 +106,8 @@ public static class SceneEntryPointManager
             cancellationToken.ThrowIfCancellationRequested();
 
             // 現在のシーンエントリーポイント情報を更新
-            CURRENT_SCENE_ENTRY_POINT_INFO = CurrentSceneEntryPointInfo.Create<TSceneEntryPoint, TContext>(scene);
-            LOAD_SCENE_ENTRY_POINT_TASK_FACTORY_STACK.Push(() => LoadAsync<TSceneEntryPoint, TContext>(context));
+            CURRENT_SCENE_ENTRY_POINT_INFO = CurrentSceneEntryPointInfo.Create<TSceneEntryPoint, TArguments>(scene);
+            LOAD_SCENE_ENTRY_POINT_TASK_FACTORY_STACK.Push(() => LoadAsync<TSceneEntryPoint, TArguments>(arguments));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -169,11 +169,11 @@ public static class SceneEntryPointManager
         return CURRENT_SCENE_ENTRY_POINT_INFO.Value.OnOutTaskFactory(cancellationToken);
     }
 
-    private static async UniTask<TSceneEntryPoint> LoadCoreAsync<TSceneEntryPoint, TContext>(CancellationToken cancellationToken)
-        where TSceneEntryPoint : SceneEntryPointBase<TContext>
-        where TContext : ISceneEntryPointContext
+    private static async UniTask<TSceneEntryPoint> LoadCoreAsync<TSceneEntryPoint, TArguments>(CancellationToken cancellationToken)
+        where TSceneEntryPoint : SceneEntryPointBase<TArguments>
+        where TArguments : ISceneEntryPointArguments
     {
-        var sceneName = SceneEntryPointHelper.GetSceneFileName<TSceneEntryPoint, TContext>();
+        var sceneName = SceneEntryPointHelper.GetSceneFileName<TSceneEntryPoint, TArguments>();
 
         // 新しいシーンエントリーポイントをロードする
         await UnityEngine.SceneManagement.SceneManager

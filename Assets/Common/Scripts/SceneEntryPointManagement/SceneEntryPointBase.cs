@@ -7,12 +7,12 @@ namespace SceneEntryPointManagement;
 /// <summary>
 /// シーンエントリーポイントの基底クラス
 /// </summary>
-public abstract class SceneEntryPointBase<TContext> : MonoBehaviour where TContext : ISceneEntryPointContext
+public abstract class SceneEntryPointBase<TArguments> : MonoBehaviour where TArguments : ISceneEntryPointArguments
 {
     /// <summary>
     /// 初期化処理
     /// </summary>
-    public abstract UniTask InitializeAsync(TContext context, CancellationToken cancellationToken);
+    public abstract UniTask InitializeAsync(TArguments arguments, CancellationToken cancellationToken);
 
     /// <summary>
     /// 初期化後の処理
@@ -31,6 +31,6 @@ public abstract class SceneEntryPointBase<TContext> : MonoBehaviour where TConte
 }
 
 /// <summary>
-/// シーンエントリーポイントの基底クラス（コンテキスト省略版）
+/// シーンエントリーポイントの基底クラス（引数省略版）
 /// </summary>
-public abstract class SceneEntryPointBase : SceneEntryPointBase<ISceneEntryPointContext.Default> { }
+public abstract class SceneEntryPointBase : SceneEntryPointBase<ISceneEntryPointArguments.Default> { }
