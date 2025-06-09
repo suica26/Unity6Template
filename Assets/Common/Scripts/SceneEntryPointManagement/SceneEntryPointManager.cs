@@ -111,7 +111,7 @@ public static class SceneEntryPointManager
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw e;
+            throw;
         }
         finally
         {
@@ -152,7 +152,7 @@ public static class SceneEntryPointManager
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            throw e;
+            throw;
         }
     }
 
